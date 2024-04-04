@@ -5,6 +5,7 @@ from __future__ import division
 
 import math
 from copy import deepcopy
+from typing import Dict, List
 
 import cython as cy
 import numpy as np
@@ -400,7 +401,7 @@ class StrategyBase(Node):
         self.bankrupt = False
 
     @property
-    def price(self):
+    def price(self) -> float:
         """
         Current price.
         """
@@ -409,7 +410,7 @@ class StrategyBase(Node):
         return self._price
 
     @property
-    def prices(self):
+    def prices(self) -> pd.Series:
         """
         TimeSeries of prices.
         """
@@ -418,7 +419,7 @@ class StrategyBase(Node):
         return self._prices.loc[: self.now]
 
     @property
-    def values(self):
+    def values(self) -> pd.Series:
         """
         TimeSeries of values.
         """
@@ -427,7 +428,7 @@ class StrategyBase(Node):
         return self._values.loc[: self.now]
 
     @property
-    def notional_values(self):
+    def notional_values(self) -> pd.Series:
         """
         TimeSeries of notional values.
         """
@@ -436,7 +437,7 @@ class StrategyBase(Node):
         return self._notl_values.loc[: self.now]
 
     @property
-    def capital(self):
+    def capital(self) -> float:
         """
         Current capital - amount of unallocated capital left in strategy.
         """
@@ -444,7 +445,7 @@ class StrategyBase(Node):
         return self._capital
 
     @property
-    def cash(self):
+    def cash(self) -> pd.Series:
         """
         TimeSeries of unallocated capital.
         """
@@ -452,7 +453,7 @@ class StrategyBase(Node):
         return self._cash
 
     @property
-    def fees(self):
+    def fees(self) -> pd.Series:
         """
         TimeSeries of fees.
         """
@@ -461,7 +462,7 @@ class StrategyBase(Node):
         return self._fees.loc[: self.now]
 
     @property
-    def flows(self):
+    def flows(self) -> pd.Series:
         """
         TimeSeries of flows.
         """
@@ -470,7 +471,7 @@ class StrategyBase(Node):
         return self._all_flows.loc[: self.now]
 
     @property
-    def bidoffer_paid(self):
+    def bidoffer_paid(self) -> float:
         """
         Bid/offer spread paid on transactions in the current step
         """
@@ -482,7 +483,7 @@ class StrategyBase(Node):
             raise Exception("Bid/offer accounting not turned on: " '"bidoffer" argument not provided during setup')
 
     @property
-    def bidoffers_paid(self):
+    def bidoffers_paid(self) -> pd.Series:
         """
         TimeSeries of bid/offer spread paid on transactions in each step
         """
@@ -494,7 +495,7 @@ class StrategyBase(Node):
             raise Exception("Bid/offer accounting not turned on: " '"bidoffer" argument not provided during setup')
 
     @property
-    def universe(self):
+    def universe(self) -> pd.DataFrame:
         """
         Data universe available at the current time.
         Universe contains the data passed in when creating a Backtest.
@@ -511,29 +512,30 @@ class StrategyBase(Node):
             return self._funiverse
 
     @property
-    def securities(self):
+    def securities(self) -> List["SecurityBase"]:
         """
         Returns a list of children that are of type SecurityBase
         """
         return [x for x in self.members if isinstance(x, SecurityBase)]
 
     @property
-    def outlays(self):
+    def outlays(self) -> pd.DataFrame:
         """
         Returns a DataFrame of outlays for each child SecurityBase
         """
         if self.root.stale:
             self.root.update(self.root.now, None)
-        outlays = pd.DataFrame()
+        outlays: Dict[str, pd.Series] = dict()
         for x in self.securities:
-            if x.name in outlays.columns:
+            if x.name in outlays:
                 outlays[x.name] += x.outlays
             else:
                 outlays[x.name] = x.outlays
-        return outlays
+        self._outlay = pd.concat(outlays, axis=1)
+        return pd.concat(outlays, axis=1)
 
     @property
-    def positions(self):
+    def positions(self) -> pd.DataFrame:
         """
         TimeSeries of positions.
         """
@@ -541,15 +543,14 @@ class StrategyBase(Node):
         if self.root.stale:
             self.root.update(self.root.now, None)
 
-        vals = pd.DataFrame()
-        for x in self.members:
-            if isinstance(x, SecurityBase):
-                if x.name in vals.columns:
-                    vals[x.name] += x.positions
-                else:
-                    vals[x.name] = x.positions
-        self._positions = vals
-        return vals
+        vals: Dict[str, pd.Series] = dict()
+        for x in self.securities:
+            if x.name in vals:
+                vals[x.name] += x.positions
+            else:
+                vals[x.name] = x.positions
+        self._positions = pd.concat(vals, axis=1)
+        return self._positions
 
     def setup(self, universe, **kwargs):
         """
@@ -1178,7 +1179,7 @@ class SecurityBase(Node):
     def __init__(self, name, multiplier=1, lazy_add=False):
         Node.__init__(self, name, parent=None, children=None)
         self._value = 0
-        self._price = 0
+        self._price = np.nan
         self._weight = 0
         self._position = 0
         self.multiplier = multiplier
@@ -1192,7 +1193,7 @@ class SecurityBase(Node):
         self._bidoffer = 0
 
     @property
-    def price(self):
+    def price(self) -> float:
         """
         Current price.
         """
@@ -1202,7 +1203,7 @@ class SecurityBase(Node):
         return self._price
 
     @property
-    def prices(self):
+    def prices(self) -> pd.Series:
         """
         TimeSeries of prices.
         """
@@ -1212,7 +1213,7 @@ class SecurityBase(Node):
         return self._prices.loc[: self.now]
 
     @property
-    def values(self):
+    def values(self) -> pd.Series:
         """
         TimeSeries of values.
         """
@@ -1224,7 +1225,7 @@ class SecurityBase(Node):
         return self._values.loc[: self.now]
 
     @property
-    def notional_values(self):
+    def notional_values(self) -> pd.Series:
         """
         TimeSeries of notional values.
         """
@@ -1236,7 +1237,7 @@ class SecurityBase(Node):
         return self._notl_values.loc[: self.now]
 
     @property
-    def position(self):
+    def position(self) -> float:
         """
         Current position
         """
@@ -1244,7 +1245,7 @@ class SecurityBase(Node):
         return self._position
 
     @property
-    def positions(self):
+    def positions(self) -> pd.Series:
         """
         TimeSeries of positions.
         """
@@ -1256,7 +1257,7 @@ class SecurityBase(Node):
         return self._positions.loc[: self.now]
 
     @property
-    def outlays(self):
+    def outlays(self) -> pd.Series:
         """
         TimeSeries of outlays. Positive outlays (buys) mean this security
         received and consumed capital (capital was allocated to it). Negative
@@ -1271,7 +1272,7 @@ class SecurityBase(Node):
         return self._outlays.loc[: self.now]
 
     @property
-    def bidoffer(self):
+    def bidoffer(self) -> float:
         """
         Current bid/offer spread.
         """
@@ -1281,7 +1282,7 @@ class SecurityBase(Node):
         return self._bidoffer
 
     @property
-    def bidoffers(self):
+    def bidoffers(self) -> pd.Series:
         """
         TimeSeries of bid/offer spread
         """
@@ -1294,7 +1295,7 @@ class SecurityBase(Node):
             raise Exception("Bid/offer accounting not turned on: " '"bidoffer" argument not provided during setup')
 
     @property
-    def bidoffer_paid(self):
+    def bidoffer_paid(self) -> float:
         """
         TimeSeries of bid/offer spread paid on transactions in the current step
         """
@@ -1304,7 +1305,7 @@ class SecurityBase(Node):
         return self._bidoffer_paid
 
     @property
-    def bidoffers_paid(self):
+    def bidoffers_paid(self) -> pd.Series:
         """
         TimeSeries of bid/offer spread paid on transactions in the current step
         """
@@ -1410,11 +1411,17 @@ class SecurityBase(Node):
             self.now = date
 
             if self._prices_set:
-                self._price = self._prices.values[inow]
+                prc = self._prices.values[inow]
             # traditional data update
             elif data is not None:
                 prc = data[self.name]
-                self._price = prc
+            
+            # suspend trading if price is NaN
+            if np.isnan(prc):
+                prc = self._price
+
+            self._price = prc
+            if not self._prices_set:
                 self._prices.values[inow] = prc
 
             # update bid/offer

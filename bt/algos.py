@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import sklearn.covariance
 
-import bt
+from .. import bt
 from bt.core import Algo, AlgoStack, SecurityBase, is_zero
 
 
