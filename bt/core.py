@@ -1081,12 +1081,13 @@ class StrategyBase(Node):
         prc = pd.DataFrame({x.name: x.prices for x in self.securities}).unstack()
 
         # get security positions
-        positions = pd.DataFrame()
+        positions = {}
         for x in self.securities:
-            if x.name in positions.columns:
+            if x.name in positions:
                 positions[x.name] += x.positions
             else:
                 positions[x.name] = x.positions
+        positions = pd.concat(positions, axis=1)
         # trades are diff
         trades = positions.diff()
         # must adjust first row
